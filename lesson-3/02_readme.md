@@ -4,7 +4,6 @@
 - Never assume supply is static
 - events matter more than storage
 
-
 # Burn address
 - 0x0000000000000000000000000000000000000000
 - 0x000000000000000000000000000000000000dEaD
@@ -17,7 +16,6 @@ These are ERC-20 compliant but dangerous:
 - pausable tokens
 
 ERC-20 is intentionally dumb: balances + allowances + events — everything else is convention.
-
 
 - show real ERC-20 bugs from history
 - or explain why ERC-777 failed

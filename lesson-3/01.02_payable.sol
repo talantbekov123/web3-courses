@@ -19,15 +19,8 @@ contract RandomWithdraw {
     function pickWinner() external {
         require(players.length > 0, "No players");
 
-        uint256 randomIndex = uint256(
-            keccak256(
-                abi.encodePacked(
-                    block.timestamp,
-                    block.prevrandao,
-                    players.length
-                )
-            )
-        ) % players.length;
+        // Use block.timestamp modulo number of players
+        uint256 randomIndex = block.timestamp % players.length;
 
         address winner = players[randomIndex];
         uint256 amount = address(this).balance;
