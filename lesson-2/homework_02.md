@@ -1,7 +1,7 @@
 ⭐ Restaurant Review Contract — Extended Short Description (with Moderators)
 
 Build a smart contract where the owner manages the system and can:
-- Contract creatro can add moderators
+- Contract creator can add moderators
 - Moderators can propose new restaurants
 - A restaurant is added only after two moderators approve it
 
