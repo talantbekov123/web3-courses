@@ -80,19 +80,7 @@ contract SimpleERC20 {
 
     // --- Internal mechanics ---
 
-    function _transfer(address from, address to, uint256 value) internal {
-        require(from != address(0), "ERC20: from zero address");
-        require(to != address(0), "ERC20: to zero address");
-
-        uint256 bal = balanceOf[from];
-        require(bal >= value, "ERC20: balance too low");
-
-        // effects
-        balanceOf[from] = bal - value;
-        balanceOf[to] += value;
-
-        emit Transfer(from, to, value);
-    }
+    
 
     function _mint(address to, uint256 value) internal {
         require(to != address(0), "ERC20: mint to zero address");
