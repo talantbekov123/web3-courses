@@ -1,174 +1,175 @@
 import {
   Address,
   createPublicClient,
+  http,
   parseEther,
-  webSocket,
 } from 'viem'
 import { mainnet } from 'viem/chains'
 
-// === Config ===
-const TARGET_PRICE = 2000 // trigger threshold in USDC
-const AMOUNT_IN_ETH = 1n // simulated buy size
-const AMOUNT_IN = parseEther(AMOUNT_IN_ETH.toString())
-const POOL_ADDRESS: Address =
-  '0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8' // ETH/USDC 0.3%
+// Basic config
+const RPC_URL = 'https://ethereum-rpc.publicnode.com'
 
-const WS_URL =
-  process.env.ETH_WS_URL ?? 'wss://mainnet.infura.io/ws/v3/YOUR_KEY'
+const POLL_INTERVAL_MS = 10_000
+const AMOUNT_IN_ETH = 1n
+const AMOUNT_IN_WEI = parseEther(AMOUNT_IN_ETH.toString())
 
-// Uniswap V3 SwapRouter
-const UNISWAP_V3_ROUTER: Address =
-  '0xE592427A0AEce92De3Edee1F18E0157C05861564'
+// Mainnet Uniswap V2-style routers (support getAmountsOut)
+const UNISWAP_V2_ROUTER: Address =
+  '0x7a250d5630b4cf539739df2c5dacb4c659f2488d'
+const SUSHISWAP_V2_ROUTER: Address =
+  '0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f'
 
-// Pool tokens (USDC / WETH9)
-const TOKEN0_USDC: Address =
-  '0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
-const TOKEN1_WETH: Address =
-  '0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2'
-const FEE_TIER = 3000
+// WETH & USDT on Ethereum mainnet
+const WETH: Address = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+const USDT: Address = '0xdac17f958d2ee523a2206206994597c13d831ec7'
 
-const DECIMALS_USDC = 6
-const DECIMALS_WETH = 18
-
-// Minimal Uniswap V3 pool ABI (Swap event only)
-const uniswapV3PoolAbi = [
+// Minimal Uniswap V2 router ABI
+const uniswapV2RouterAbi = [
   {
-    type: 'event',
-    name: 'Swap',
+    type: 'function',
+    stateMutability: 'view',
+    name: 'getAmountsOut',
     inputs: [
-      { name: 'sender', type: 'address', indexed: true },
-      { name: 'recipient', type: 'address', indexed: true },
-      { name: 'amount0', type: 'int256', indexed: false },
-      { name: 'amount1', type: 'int256', indexed: false },
-      { name: 'sqrtPriceX96', type: 'uint160', indexed: false },
-      { name: 'liquidity', type: 'uint128', indexed: false },
-      { name: 'tick', type: 'int24', indexed: false },
+      { name: 'amountIn', type: 'uint256' },
+      { name: 'path', type: 'address[]' },
     ],
+    outputs: [{ name: 'amounts', type: 'uint256[]' }],
   },
-] as const
-
-// Minimal Uniswap V3 SwapRouter ABI (exactInputSingle)
-const swapRouterAbi = [
   {
     type: 'function',
     stateMutability: 'payable',
-    name: 'exactInputSingle',
+    name: 'swapExactETHForTokens',
     inputs: [
-      {
-        name: 'params',
-        type: 'tuple',
-        components: [
-          { name: 'tokenIn', type: 'address' },
-          { name: 'tokenOut', type: 'address' },
-          { name: 'fee', type: 'uint24' },
-          { name: 'recipient', type: 'address' },
-          { name: 'deadline', type: 'uint256' },
-          { name: 'amountIn', type: 'uint256' },
-          { name: 'amountOutMinimum', type: 'uint256' },
-          { name: 'sqrtPriceLimitX96', type: 'uint160' },
-        ],
-      },
+      { name: 'amountOutMin', type: 'uint256' },
+      { name: 'path', type: 'address[]' },
+      { name: 'to', type: 'address' },
+      { name: 'deadline', type: 'uint256' },
     ],
-    outputs: [{ name: 'amountOut', type: 'uint256' }],
+    outputs: [{ name: 'amounts', type: 'uint256[]' }],
   },
 ] as const
 
+type DexId = 'Uniswap V2' | 'SushiSwap'
+
 const client = createPublicClient({
   chain: mainnet,
-  transport: webSocket(WS_URL),
+  transport: http(RPC_URL),
 })
 
 function nowIso() {
   return new Date().toISOString()
 }
 
-function decodeEthPriceFromSqrtPriceX96(sqrtPriceX96: bigint): number {
-  const sqrtPrice = Number(sqrtPriceX96) / 2 ** 96
-  const priceToken1InToken0 =
-    sqrtPrice * sqrtPrice * 10 ** (DECIMALS_USDC - DECIMALS_WETH)
-  return priceToken1InToken0
-}
-
-async function simulateBuy() {
-  const account: Address =
-    '0x0000000000000000000000000000000000000002'
-
-  const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 10)
-
-  await client.simulateContract({
-    address: UNISWAP_V3_ROUTER,
-    abi: swapRouterAbi,
-    functionName: 'exactInputSingle',
-    args: [
+async function fetchPrices() {
+  const results = await client.multicall({
+    allowFailure: false,
+    contracts: [
       {
-        tokenIn: TOKEN1_WETH,
-        tokenOut: TOKEN0_USDC,
-        fee: FEE_TIER,
-        recipient: account,
-        deadline,
-        amountIn: AMOUNT_IN,
-        amountOutMinimum: 0n,
-        sqrtPriceLimitX96: 0n,
+        address: UNISWAP_V2_ROUTER,
+        abi: uniswapV2RouterAbi,
+        functionName: 'getAmountsOut',
+        args: [AMOUNT_IN_WEI, [WETH, USDT]],
+      },
+      {
+        address: SUSHISWAP_V2_ROUTER,
+        abi: uniswapV2RouterAbi,
+        functionName: 'getAmountsOut',
+        args: [AMOUNT_IN_WEI, [WETH, USDT]],
       },
     ],
-    account,
+  })
+
+  const [uniOut, sushiOut] = results as readonly [readonly bigint[], readonly bigint[]]
+
+  const uniUsdtOut = uniOut[1]
+  const sushiUsdtOut = sushiOut[1]
+
+  const uniPrice =
+    Number(uniUsdtOut) / 10 ** 6 / Number(AMOUNT_IN_ETH) // USDT has 6 decimals
+  const sushiPrice =
+    Number(sushiUsdtOut) / 10 ** 6 / Number(AMOUNT_IN_ETH)
+
+  return { uniPrice, sushiPrice, uniUsdtOut, sushiUsdtOut }
+}
+
+async function simulateBuyOnDex(dex: DexId) {
+  const router =
+    dex === 'Uniswap V2' ? UNISWAP_V2_ROUTER : SUSHISWAP_V2_ROUTER
+
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 10)
+  const recipient: Address =
+    '0xaeF33e76972C08b8AC19221cB6e7d2fa4054af43'
+
+  await client.simulateContract({
+    address: router,
+    abi: uniswapV2RouterAbi,
+    functionName: 'swapExactETHForTokens',
+    args: [0n, [WETH, USDT], recipient, deadline],
+    value: AMOUNT_IN_WEI,
+    account: recipient,
   })
 }
 
 async function main() {
-  console.log(
-    `[${nowIso()}] Subscribing to Uniswap V3 Swap events on pool ${POOL_ADDRESS}...`,
-  )
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      const { uniPrice, sushiPrice } = await fetchPrices()
+      const timestamp = nowIso()
 
-  const unwatch = client.watchContractEvent({
-    address: POOL_ADDRESS,
-    abi: uniswapV3PoolAbi,
-    eventName: 'Swap',
-    onLogs: async (logs) => {
-      for (const log of logs) {
-        const sqrtPriceX96 = log.args.sqrtPriceX96 as bigint
-        const price = decodeEthPriceFromSqrtPriceX96(sqrtPriceX96)
-        const ts = nowIso()
+      const spreadPct =
+        (Math.abs(uniPrice - sushiPrice) /
+          Math.min(uniPrice, sushiPrice)) *
+        100
 
-        if (price < TARGET_PRICE) {
+      console.log(
+        `[${timestamp}] Uniswap: $${uniPrice.toFixed(
+          2,
+        )} | Sushi: $${sushiPrice.toFixed(
+          2,
+        )} | Spread: ${spreadPct.toFixed(2)}%`,
+      )
+
+      if (spreadPct > 1) {
+        const buyOn: DexId =
+          uniPrice < sushiPrice ? 'Uniswap V2' : 'SushiSwap'
+        const sellOn: DexId =
+          buyOn === 'Uniswap V2' ? 'SushiSwap' : 'Uniswap V2'
+
+        const buyPrice = buyOn === 'Uniswap V2' ? uniPrice : sushiPrice
+        const sellPrice = buyOn === 'Uniswap V2' ? sushiPrice : uniPrice
+
+        const estProfitUsd =
+          (sellPrice - buyPrice) * Number(AMOUNT_IN_ETH)
+
+        console.log(
+          `[${timestamp}] 🟢 ARBITRAGE: spread ${spreadPct.toFixed(
+            2,
+          )}% → simulating swap...`,
+        )
+
+        try {
+          await simulateBuyOnDex(buyOn)
           console.log(
-            `[${ts}] 🟢 BUY SIGNAL: Price $${price.toFixed(
+            `[${timestamp}] 🟢 ARBITRAGE FOUND: Buy on ${buyOn}, Sell on ${sellOn} | Spread: ${spreadPct.toFixed(
               2,
-            )} < $${TARGET_PRICE} | Simulating buy...`,
+            )}% | Est. profit: $${estProfitUsd.toFixed(2)}`,
           )
-
-          try {
-            await simulateBuy()
-            console.log(
-              `[${ts}] 🟢 BUY SIGNAL: Price $${price.toFixed(
-                2,
-              )} < $${TARGET_PRICE} | Simulated buy OK`,
-            )
-          } catch (error) {
-            console.error(
-              `[${ts}] Simulation reverted or failed`,
-              error,
-            )
-          }
-        } else {
-          console.log(
-            `[${ts}] ⏳ Price $${price.toFixed(2)} — waiting...`,
+        } catch (error) {
+          console.error(
+            `[${timestamp}] Simulation reverted or failed on ${buyOn}`,
+            error,
           )
         }
       }
-    },
-    onError: (error) => {
-      console.error(`[${nowIso()}] watchContractEvent error`, error)
-    },
-  })
+    } catch (error) {
+      console.error(`[${nowIso()}] Error during price check`, error)
+    }
 
-  process.on('SIGINT', () => {
-    console.log(`[${nowIso()}] Caught SIGINT, shutting down watcher...`)
-    unwatch()
-    setTimeout(() => {
-      process.exit(0)
-    }, 500)
-  })
+    await new Promise((resolve) =>
+      setTimeout(resolve, POLL_INTERVAL_MS),
+    )
+  }
 }
 
 main().catch((error) => {
