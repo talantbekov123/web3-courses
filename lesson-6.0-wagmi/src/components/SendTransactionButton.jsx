@@ -62,7 +62,7 @@ export default function SendTransactionButton() {
   const handleSend = () => {
     sendTransaction({
       to: BURN_ADDRESS,
-      value: parseEther('0.1'),
+      value: parseEther('0.01'),
     });
   };
 

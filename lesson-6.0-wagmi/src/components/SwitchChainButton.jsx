@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import { useChainId, useSwitchChain } from 'wagmi';
 import { mainnet, sepolia } from 'wagmi/chains';
-
+const kasplex = {
+  id: 8786,
+  name: 'Kasplex',
+  nativeCurrency: { name: 'Kasplex', symbol: 'KAS', decimals: 18 },
+  rpcUrls: {
+    default: {
+      http: ['https://rpc.kasplex.com'],
+    },
+  },
+}
 const containerStyle = {
   display: 'flex',
   flexDirection: 'column',
