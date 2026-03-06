@@ -1,6 +1,7 @@
 import { network } from "hardhat";
 
-const { ethers, networkName } = await network.connect();
+const { ethers, networkName } = await network.connect('sepolia');
+// const { ethers, networkName } = await network.connect();
 
 console.log(`Deploying to ${networkName}...`);
 

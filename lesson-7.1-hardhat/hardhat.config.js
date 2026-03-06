@@ -10,4 +10,11 @@ export default defineConfig({
       },
     },
   },
+  networks: {
+    sepolia: {
+      type: "http",
+      url: "https://ethereum-sepolia-rpc.publicnode.com",
+      accounts: ["0xc33e01cfe5c969db44510a9118a9de88f54bffd1e0c740d9ac05a8e6c27bc197"]
+    }
+  }
 });
