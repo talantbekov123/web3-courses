@@ -1,0 +1,43 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-e1fcf51981fd1c11eb37cf0c2d35c0ae1a7ea25b",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/Counter.sol": "project/contracts/Counter.sol",
+    "contracts/HelloWorld.sol": "project/contracts/HelloWorld.sol",
+    "contracts/Owned.sol": "project/contracts/Owned.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/Counter.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ncontract Counter {\n    uint public count;\n\n    function increment() public {\n        count += 1;\n    }\n\n    function decrement() public {\n        require(count > 0, \"Below zero\");\n        count -= 1;\n    }\n}\n\n"
+      },
+      "project/contracts/HelloWorld.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ncontract HelloWorld {\n    string public message = \"Hello, World!\";\n\n    function setMessage(string calldata newMessage) public {\n        message = newMessage;\n    }\n\n    function getMessage() public view returns (string memory) {\n        return message;\n    }\n}\n\n"
+      },
+      "project/contracts/Owned.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ncontract Owned {\n    address public owner;\n\n    constructor() {\n        owner = 0xaeF33e76972C08b8AC19221cB6e7d2fa4054af43;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Not owner\");\n        _;\n    }\n\n    function doOwnerThing() public onlyOwner {\n        // owner-only logic here\n    }\n}\n\n"
+      }
+    }
+  }
+}
