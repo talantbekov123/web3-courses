@@ -1,28 +1,31 @@
-import { expect } from "chai";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { network } from "hardhat";
 
-const { ethers } = await network.connect();
+describe("HelloWorld", async function () {
+  const { viem } = await network.connect();
 
-describe("HelloWorld", function () {
   it("should return default message", async function () {
-    const hello = await ethers.deployContract("HelloWorld");
-    expect(await hello.getMessage()).to.equal("Hello, World!");
+    const hello = await viem.deployContract("HelloWorld");
+    assert.equal(await hello.read.getMessage(), "Hello, World!");
   });
 
   it("should set a new message", async function () {
-    const hello = await ethers.deployContract("HelloWorld");
-    await hello.setMessage("Hey!");
-    expect(await hello.getMessage()).to.equal("Hey!");
+    const hello = await viem.deployContract("HelloWorld");
+    await hello.write.setMessage(["Hey!"]);
+    assert.equal(await hello.read.getMessage(), "Hey!");
   });
 });
 
-describe("Counter", function () {
+describe("Counter", async function () {
+  const { viem } = await network.connect();
+
   it("should increment and decrement", async function () {
-    const counter = await ethers.deployContract("Counter");
-    await counter.increment();
-    await counter.increment();
-    expect(await counter.count()).to.equal(2);
-    await counter.decrement();
-    expect(await counter.count()).to.equal(1);
+    const counter = await viem.deployContract("Counter");
+    await counter.write.increment();
+    await counter.write.increment();
+    assert.equal(await counter.read.count(), 2n);
+    await counter.write.decrement();
+    assert.equal(await counter.read.count(), 1n);
   });
 });

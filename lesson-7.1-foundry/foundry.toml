@@ -6,3 +6,6 @@ solc = "0.8.28"
 
 [rpc_endpoints]
 sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
+
+[fuzz]
+runs = 256

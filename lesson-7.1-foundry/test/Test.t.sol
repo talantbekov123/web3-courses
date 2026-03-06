@@ -36,4 +36,12 @@ contract CounterTest is Test {
         counter.decrement();
         assertEq(counter.count(), 1);
     }
+
+    function testFuzz_increment(uint256 n) public {
+        n = bound(n, 0, 100); // ограничиваем диапазон
+        for (uint256 i = 0; i < n; i++) {
+            counter.increment();
+        }
+        assertEq(counter.count(), n);
+    }
 }

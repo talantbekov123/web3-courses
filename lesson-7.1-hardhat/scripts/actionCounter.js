@@ -1,28 +1,22 @@
 import { network } from "hardhat";
 
-const { ethers, networkName } = await network.connect("sepolia");
+const { viem, networkName } = await network.connect("sepolia");
 console.log(`Interacting on ${networkName}...`);
 
 const address = "0x319b550b42021F430b6B9a7aAb8d569ec733f557";
-const counter = await ethers.getContractAt("Counter", address);
+const counter = await viem.getContractAt("Counter", address);
 
-// Read current count
-console.log("Count:", (await counter.count()).toString());
+console.log("Count:", (await counter.read.count()).toString());
 
-// Increment twice
-let tx = await counter.increment();
-await tx.wait();
+await counter.write.increment();
 console.log("Incremented!");
 
-tx = await counter.increment();
-await tx.wait();
+await counter.write.increment();
 console.log("Incremented again!");
 
-console.log("Count:", (await counter.count()).toString());
+console.log("Count:", (await counter.read.count()).toString());
 
-// Decrement once
-tx = await counter.decrement();
-await tx.wait();
+await counter.write.decrement();
 console.log("Decremented!");
 
-console.log("Final count:", (await counter.count()).toString());
+console.log("Final count:", (await counter.read.count()).toString());
